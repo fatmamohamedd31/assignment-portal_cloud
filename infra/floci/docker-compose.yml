@@ -1,0 +1,51 @@
+# Run from the repository root: docker compose -f infra/floci/docker-compose.yml ...
+# DATABASE_URL (Neon) is NOT written here. It comes from backend/.env through
+# env_file, which is git-ignored.
+services:
+  floci:
+    image: floci/floci:latest # use your lab's image line if it differs
+    ports: ["4566:4566"]
+    environment:
+      FLOCI_HOSTNAME: floci # SQS queue URLs use the name "floci" inside Docker
+    volumes:
+      - floci-data:/app/data # keeps S3 files, topics, queues and logs between restarts
+
+  api:
+    profiles: ["app"]
+    build: ../../backend
+    env_file: ../../backend/.env # includes DATABASE_URL, JWT_SECRET, CRON_SECRET, ...
+    environment:
+      NODE_ENV: production
+      AWS_ENDPOINT_URL: http://floci:4566 # inside Docker, Floci is called "floci"
+    ports: ["127.0.0.1:3000:3000"]
+    depends_on: [floci]
+    restart: unless-stopped
+
+  web:
+    profiles: ["app"]
+    build:
+      context: ../../frontend
+      args:
+        VITE_API_URL: http://localhost:3000
+        VITE_TURNSTILE_SITE_KEY: 1x00000000000000000000AA # Cloudflare TEST site key (public)
+    ports: ["127.0.0.1:8080:80"]
+    depends_on: [api]
+    restart: unless-stopped
+
+  scheduler: # calls the reminder endpoint every hour
+    profiles: ["app"]
+    image: curlimages/curl
+    env_file: ../../backend/.env # only CRON_SECRET is used here
+    entrypoint: ["sh", "-c"]
+    command:
+      - >
+        sleep 30;
+        while true; do
+          curl -s -H "Authorization: Bearer $$CRON_SECRET" http://api:3000/api/cron/reminders;
+          echo; sleep 3600;
+        done
+    depends_on: [api]
+    restart: unless-stopped
+
+volumes:
+  floci-data:
