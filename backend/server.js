@@ -1,15 +1,11 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const fs = require('fs');
-const path = require('path');
 const { fail, Rule } = require('./lib/http');
 const logger = require('./middleware/logger');
 const setup = require('./db/setup');
 const { FANOUT } = require('./lib/events');
 const app = express();
-const publicDir = path.join(__dirname, 'public');
-const frontendIndex = path.join(publicDir, 'index.html');
 app.use(logger);
 const origins = (process.env.CORS_ORIGINS ||
 'http://localhost:5173').split(',').map((o) => o.trim());
@@ -19,10 +15,7 @@ methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
 allowedHeaders: ['Content-Type', 'Authorization', 'X-Turnstile-Token']
 }));
 app.use(express.json({ limit: '100kb' }));
-app.get('/', (req, res) => {
-if (fs.existsSync(frontendIndex)) return res.sendFile(frontendIndex);
-return res.status(200).json({ name: 'AssignmentSubmission Portal API' });
-});
+app.get('/', (req, res) => res.status(200).json({ name: 'AssignmentSubmission Portal API' }));
 app.get('/api/health', (req, res) =>
 res.status(200).json({ status: 'ok', environment: process.env.NODE_ENV ||
 'development' }));
@@ -34,15 +27,6 @@ app.use('/api/cron', require('./routes/cron'));
 app.use('/api/submissions', require('./routes/submissions'));
 app.use('/api/grading', require('./routes/grading'));
 app.use('/api/reports', require('./routes/reports'));
-// In the cloud container, the API and built React app share one public origin.
-// Keep local backend-only development working when no frontend build is present.
-if (fs.existsSync(frontendIndex)) {
-app.use(express.static(publicDir));
-app.use((req, res, next) => {
-if (req.method !== 'GET' || req.path.startsWith('/api/')) return next();
-return res.sendFile(frontendIndex);
-});
-}
 app.use((req, res) => fail(res, 404, 'ROUTE_NOT_FOUND', 'No such route.'));
 app.use((err, req, res, next) => {
 if (err instanceof Rule) return fail(res, err.status, err.code,
