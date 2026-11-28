@@ -12,7 +12,9 @@ services:
 
   api:
     profiles: ["app"]
-    build: ../../backend
+    build:
+      context: ../..
+      dockerfile: backend/Dockerfile
     env_file: ../../backend/.env # includes DATABASE_URL, JWT_SECRET, CRON_SECRET, ...
     environment:
       NODE_ENV: production
