@@ -1,4 +1,6 @@
-const BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+// Use the same origin in production when the API serves the built frontend.
+// Local Vite development keeps using the separately running Express API.
+const BASE = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://localhost:3000' : '');
 export const getToken = () => localStorage.getItem('token');
 // One function for every request. Throws Error(message) using the API's error message.
 export async function api(path, { method = 'GET', body, form, turnstile } = {}) {
