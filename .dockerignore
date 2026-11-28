@@ -1,9 +1,0 @@
-.git
-.git/**
-**/node_modules
-**/.env
-**/.env.*
-**/dist
-evidence
-frontend-tmp
-*.log
